@@ -146,8 +146,8 @@ function Info() {
             <div 
               className="tech-slider" 
               style={{
-                transform: `translateX(${selectedTech * 100}%)`,
-                width: `${100 / techStack.length}%`
+                transform: `translateX(calc(${selectedTech * 100}% + ${selectedTech * 8}px))`,
+                width: `calc(${100 / techStack.length}% - 10px)`
               }}
             />
           </div>
@@ -166,9 +166,63 @@ function Info() {
 
       <div className="info-content-after">
         <div className="info-section">
-          <h2 className="section-heading">TODO</h2>
-          <div className="todo-box">
-            <p>TODO</p>
+          <div className="references-section">
+            {/* 数据来源 */}
+            <div className="reference-row">
+              <div className="reference-label">数据来源</div>
+              <div className="reference-content">
+                <div className="reference-item">
+                  <p className="reference-number">1.</p>
+                  <div>
+                    <p>对 Uniswap V3 上其中一个 USDT/ETH 池进行分析</p>
+                    <p>• 以太坊合约地址：0x11b815efB8f581194ae79006d24E0d814B7697F6</p>
+                    <p>• 可通过如下链接查看：
+                      <a 
+                        href="https://goto.etherscan.com/address/0x11b815efb8f581194ae79006d24e0d814b7697f6" 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="reference-link"
+                      >
+                        https://goto.etherscan.com/address/0x11b815efb8f581194ae79006d24e0d814b7697f6
+                      </a>
+                    </p>
+                  </div>
+                </div>
+                <div className="reference-item">
+                  <p className="reference-number">2.</p>
+                  <div>
+                    <p>获取交易数据的 API 参考文档</p>
+                    <p>
+                      <a href="https://dune.com/home" target="_blank" rel="noopener noreferrer" className="reference-link">https://dune.com/home</a>
+                    </p>
+                    <p>
+                      <a href="https://thegraph.com/docs/zh/" target="_blank" rel="noopener noreferrer" className="reference-link">https://thegraph.com/docs/zh/</a>
+                    </p>
+                    <p>
+                      <a href="https://github.com/binance/binance-spot-api-docs" target="_blank" rel="noopener noreferrer" className="reference-link">https://github.com/binance/binance-spot-api-docs</a>
+                    </p>
+                    <p>
+                      <a href="https://docs.etherscan.io/" target="_blank" rel="noopener noreferrer" className="reference-link">https://docs.etherscan.io/</a>
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* 参考文献 */}
+            <div className="reference-row">
+              <div className="reference-label">参考文献</div>
+              <div className="reference-content">
+                <div className="reference-item">
+                  <p className="reference-number">[1]</p>
+                  <p>Heimbach L, Pahari V, Schertenleib E. Non-atomic arbitrage in decentralized finance[C]//2024 IEEE Symposium on Security and Privacy (SP). IEEE, 2024: 3866-3884.</p>
+                </div>
+                <div className="reference-item">
+                  <p className="reference-number">[2]</p>
+                  <p>Wu F, Sui D, Thiery T, et al. Measuring CEX-DEX Extracted Value and Searcher Profitability: The Darkest of the MEV Dark Forest[J]. arXiv preprint arXiv:2507.13023, 2025.</p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
