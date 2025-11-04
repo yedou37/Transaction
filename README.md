@@ -15,4 +15,9 @@ Then the website will be available at `http://127.0.0.1`.
 
 ## 前端TODO
 
-1. 实现搜索功能 frontend/src/components/Navbar.js
+主要位于以下4个页面中：
+
+- frontend/src/pages/ArbitrageAnalysis.css
+- frontend/src/pages/ArbitrageAnalysis.js
+- frontend/src/pages/PriceDashboard.css
+- frontend/src/pages/PriceDashboard.js

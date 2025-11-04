@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Navbar from './components/Navbar';
+import ScrollToTop from './components/ScrollToTop';
 import PriceDashboard from './pages/PriceDashboard';
 import ArbitrageAnalysis from './pages/ArbitrageAnalysis';
 import Info from './pages/Info';
@@ -9,6 +10,7 @@ import './App.css';
 function App() {
   return (
     <Router>
+      <ScrollToTop />
       <div className="App">
         <Navbar />
         <Routes>
