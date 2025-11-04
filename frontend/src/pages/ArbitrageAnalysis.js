@@ -48,7 +48,6 @@ function ArbitrageAnalysis() {
               <div className="connection-line line-1"></div>
               <div className="connection-line line-2"></div>
             </div>
-            <p className="placeholder-text">全屏数据分析展示区域</p>
           </div>
 
           {/* Scroll Indicator */}
@@ -64,7 +63,7 @@ function ArbitrageAnalysis() {
       {/* Content Section */}
       <section className="content-section">
         <div className="content-wrapper">
-          <h2 className="section-title">详细分析结果</h2>
+          <h2 className="section-title">分析结果</h2>
           <div className="todo-placeholder">
             <p>TODO</p>
           </div>

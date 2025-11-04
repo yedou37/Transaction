@@ -30,7 +30,6 @@ function PriceDashboard() {
               <div className="chart-dot dot-2"></div>
               <div className="chart-dot dot-3"></div>
             </div>
-            <p className="placeholder-text">酷炫图表展示区域</p>
           </div>
 
           {/* Scroll Indicator */}
@@ -46,7 +45,7 @@ function PriceDashboard() {
       {/* Content Section */}
       <section className="content-section">
         <div className="content-wrapper">
-          <h2 className="section-title">详细数据分析</h2>
+          <h2 className="section-title">数据分析</h2>
           <div className="todo-placeholder">
             <p>TODO</p>
           </div>
