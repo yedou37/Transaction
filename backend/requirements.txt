@@ -1,0 +1,5 @@
+fastapi
+uvicorn[standard]
+sqlalchemy
+psycopg2-binary  # 用于连接 PostgreSQL
+python-dotenv    # 用于读取 .env
