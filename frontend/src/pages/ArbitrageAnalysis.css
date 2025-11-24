@@ -224,22 +224,275 @@
   text-align: center;
 }
 
-.todo-placeholder {
+/* 错误提示 */
+.error-message {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 24px;
+  background: #fee2e2;
+  border: 1px solid #fca5a5;
+  border-radius: 12px;
+  color: #991b1b;
+  margin-bottom: 32px;
+}
+
+.error-message svg {
+  flex-shrink: 0;
+}
+
+.error-message button {
+  margin-left: auto;
+  padding: 6px 16px;
+  background: #dc2626;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: background 0.2s;
+}
+
+.error-message button:hover {
+  background: #b91c1c;
+}
+
+/* 筛选器容器 */
+.filters-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 32px;
+  padding: 24px;
+  background: #f9fafb;
+  border-radius: 16px;
+  border: 1px solid #e5e7eb;
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 150px;
+}
+
+.filter-group label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #374151;
+}
+
+.filter-group input,
+.filter-group select {
+  padding: 10px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 14px;
+  background: white;
+  color: #111827;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.filter-group input:focus,
+.filter-group select:focus {
+  outline: none;
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.reset-filters-btn {
+  align-self: flex-end;
+  padding: 10px 20px;
+  background: #6b7280;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+  margin-left: auto;
+}
+
+.reset-filters-btn:hover {
+  background: #4b5563;
+}
+
+/* 加载状态 */
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   min-height: 400px;
+  gap: 16px;
+  color: #6b7280;
+}
+
+.loading-spinner {
+  width: 48px;
+  height: 48px;
+  border: 4px solid #e5e7eb;
+  border-top-color: #6366f1;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.loading-container p {
+  font-size: 16px;
+  font-weight: 500;
+  margin: 0;
+}
+
+/* 空状态 */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  gap: 16px;
+  color: #9ca3af;
+}
+
+.empty-state svg {
+  opacity: 0.5;
+}
+
+.empty-state p {
+  font-size: 18px;
+  font-weight: 500;
+  margin: 0;
+}
+
+/* 表格容器 */
+.table-container {
+  overflow-x: auto;
+  margin-bottom: 32px;
+  background: white;
+  border-radius: 16px;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.opportunities-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.opportunities-table thead {
+  background: #f9fafb;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+.opportunities-table th {
+  padding: 16px;
+  text-align: left;
+  font-weight: 600;
+  color: #374151;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+.opportunities-table tbody tr {
+  border-bottom: 1px solid #e5e7eb;
+  transition: background 0.2s;
+}
+
+.opportunities-table tbody tr:hover {
+  background: #f9fafb;
+}
+
+.opportunities-table td {
+  padding: 16px;
+  color: #111827;
+  white-space: nowrap;
+}
+
+.opportunities-table .tx-hash a {
+  color: #6366f1;
+  text-decoration: none;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 12px;
+  transition: color 0.2s;
+}
+
+.opportunities-table .tx-hash a:hover {
+  color: #4f46e5;
+  text-decoration: underline;
+}
+
+/* 正负值颜色 */
+.positive {
+  color: #10b981;
+  font-weight: 600;
+}
+
+.negative {
+  color: #ef4444;
+  font-weight: 600;
+}
+
+.profit-positive {
+  color: #10b981;
+  font-weight: 700;
+}
+
+.profit-negative {
+  color: #ef4444;
+  font-weight: 700;
+}
+
+/* 分页器 */
+.pagination {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.02);
-  border-radius: 24px;
-  border: 2px dashed rgba(0, 0, 0, 0.1);
+  gap: 16px;
+  padding: 24px;
 }
 
-.todo-placeholder p {
-  font-size: 48px;
-  font-weight: 700;
-  color: rgba(0, 0, 0, 0.2);
-  margin: 0;
-  letter-spacing: 8px;
+.pagination-btn {
+  padding: 10px 20px;
+  background: #6366f1;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.1s;
+}
+
+.pagination-btn:hover:not(:disabled) {
+  background: #4f46e5;
+  transform: translateY(-1px);
+}
+
+.pagination-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.pagination-btn:disabled {
+  background: #d1d5db;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.pagination-info {
+  font-size: 14px;
+  color: #6b7280;
+  font-weight: 500;
 }
 
 /* Animations */
@@ -300,6 +553,32 @@
 
   .metric-value {
     font-size: 24px;
+  }
+
+  .filters-container {
+    flex-direction: column;
+  }
+
+  .reset-filters-btn {
+    align-self: stretch;
+    margin-left: 0;
+  }
+
+  .table-container {
+    overflow-x: scroll;
+  }
+
+  .opportunities-table {
+    font-size: 12px;
+  }
+
+  .opportunities-table th,
+  .opportunities-table td {
+    padding: 12px 8px;
+  }
+
+  .opportunities-table .tx-hash a {
+    font-size: 10px;
   }
 }
 
