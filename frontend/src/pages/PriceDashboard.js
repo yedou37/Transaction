@@ -77,11 +77,16 @@ function PriceDashboard() {
   };
 
   // 生成图表点数据
-  const generateChartPoints = (data, isUniswap = true) => {
-    if (!data) return [];
+  const generateChartPoints = (data, isUniswap = true, priceRange) => {
+    if (!data || !priceRange) return [];
 
     const dataset = isUniswap ? data.uniswap : data.binance;
-    if (!dataset) return [];
+    if (!dataset || dataset.length === 0) return [];
+
+    const { min, max } = priceRange;
+    const range = max - min;
+    const chartHeight = 250; // SVG 图表高度
+    const chartTop = 25; // 顶部边距
 
     return dataset.map((item, index) => ({
       x: (index / (dataset.length - 1)) * 750 + 25, // 在SVG坐标系中的x位置
@@ -97,6 +102,25 @@ function PriceDashboard() {
     }));
   };
 
+  // 生成Y轴刻度
+  const generateYTicks = (priceRange) => {
+    if (!priceRange || priceRange.min === priceRange.max) {
+      return [2600, 2550, 2500, 2450, 2400]; // 默认值
+    }
+
+    const { min, max } = priceRange;
+    const range = max - min;
+    const step = range / 4; // 5个刻度点（包括最小和最大）
+    
+    return [
+      Math.ceil(max),
+      Math.ceil(max - step),
+      Math.ceil(max - step * 2),
+      Math.ceil(max - step * 3),
+      Math.floor(min)
+    ].reverse();
+  };
+
   const renderChart = () => {
     if (loading) {
         return <div className="chart-placeholder">加载中...</div>;
@@ -110,8 +134,10 @@ function PriceDashboard() {
         return <div className="chart-placeholder">无数据</div>;
     }
 
-    const uniswapPoints = generateChartPoints(priceData, true);
-    const binancePoints = generateChartPoints(priceData, false);
+    const priceRange = calculatePriceRange(priceData);
+    const uniswapPoints = generateChartPoints(priceData, true, priceRange);
+    const binancePoints = generateChartPoints(priceData, false, priceRange);
+    const yTicks = generateYTicks(priceRange);
 
     return (
         <div className="chart-container">
