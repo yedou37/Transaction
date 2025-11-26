@@ -1,4 +1,13 @@
-from sqlalchemy import Column, Integer, String, Float, DateTime, BigInteger, UniqueConstraint
+from sqlalchemy import (
+    Column,
+    Integer,
+    String,
+    Float,
+    DateTime,
+    BigInteger,
+    UniqueConstraint,
+    func,
+)
 from .database import Base
 
 # 示例模型：存储 Uniswap V3 的 Swap 事件
@@ -21,3 +30,22 @@ class BinanceTrade(Base):
     timestamp = Column(DateTime, index=True)
     price = Column(Float)
     quantity = Column(Float)
+
+class ArbitrageOpportunity(Base):
+    __tablename__ = "arbitrage_opportunities"
+
+    id = Column(Integer, primary_key=True, index=True)
+    transaction_hash = Column(String, index=True)
+    uniswap_log_index = Column(Integer, nullable=True)
+    binance_trade_id = Column(BigInteger, nullable=True)
+    timestamp = Column(DateTime, index=True)
+    buy_timestamp = Column(DateTime, nullable=True)
+    sell_timestamp = Column(DateTime, nullable=True)
+    uniswap_price = Column(Float)
+    binance_price = Column(Float)
+    price_diff_percent = Column(Float)
+    profit = Column(Float)
+    profit_rate = Column(Float)  # stored as ratio (e.g. 0.05 = 5%)
+    volume = Column(Float)  # matched amount in ETH
+    relative_spread = Column(Float)
+    created_at = Column(DateTime, server_default=func.now())

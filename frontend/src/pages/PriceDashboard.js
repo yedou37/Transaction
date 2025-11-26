@@ -11,6 +11,14 @@ function PriceDashboard() {
     fetchData();
   }, []);
 
+  useEffect(() => {
+    console.log("[PriceDashboard] priceData state changed:", priceData);
+  }, [priceData]);
+
+  useEffect(() => {
+    console.log("[PriceDashboard] chartView changed:", chartView);
+  }, [chartView]);
+
   // 生成模拟数据的函数
   const generateMockData = () => {
     const uniswapData = [];
@@ -57,16 +65,20 @@ function PriceDashboard() {
 
       if (useBackend) {
         // 从后端获取数据
-        const response = await fetch("/api/price-data");
+        const backendUrl = process.env.REACT_APP_BACKEND_URL || "http://localhost:8000";
+        console.log("[PriceDashboard] Fetching backend data from:", `${backendUrl}/api/price-data`);
+        const response = await fetch(`${backendUrl}/api/price-data`);
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
         const data = await response.json();
+        console.log("[PriceDashboard] Backend response:", data);
         setPriceData(data);
       } else {
         await new Promise((resolve) => setTimeout(resolve, 1000));
         // 使用mock数据
         const mockData = generateMockData();
+        console.log("[PriceDashboard] Using mock data:", mockData);
         setPriceData(mockData);
       }
     } catch (err) {
@@ -74,6 +86,42 @@ function PriceDashboard() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // 计算价格范围
+  const calculatePriceRange = (data) => {
+    if (!data || (!data.uniswap && !data.binance)) {
+      return { min: 2400, max: 2600 }; // 默认范围
+    }
+
+    let allPrices = [];
+
+    // 收集所有价格数据
+    if (data.uniswap && data.uniswap.length > 0) {
+      data.uniswap.forEach((item) => {
+        allPrices.push(item.open, item.high, item.low, item.close);
+      });
+    }
+
+    if (data.binance && data.binance.length > 0) {
+      data.binance.forEach((item) => {
+        allPrices.push(item.open, item.high, item.low, item.close);
+      });
+    }
+
+    if (allPrices.length === 0) {
+      return { min: 2400, max: 2600 }; // 默认范围
+    }
+
+    const min = Math.min(...allPrices);
+    const max = Math.max(...allPrices);
+
+    // 添加一些边距以便更好地显示
+    const padding = (max - min) * 0.1;
+    return {
+      min: Math.max(0, min - padding),
+      max: max + padding,
+    };
   };
 
   // 生成图表点数据
@@ -84,16 +132,25 @@ function PriceDashboard() {
     if (!dataset || dataset.length === 0) return [];
 
     const { min, max } = priceRange;
-    const range = max - min;
-    const chartHeight = 250; // SVG 图表高度
+    const range = max - min || 1; // 防止除0
+    const chartHeight = 250; // SVG 图表可用高度
     const chartTop = 25; // 顶部边距
+    const chartBottom = chartTop + chartHeight;
+    const chartWidth = 750;
+    const chartLeft = 25;
+    const xStep = dataset.length > 1 ? chartWidth / (dataset.length - 1) : 0;
+
+    const scaleY = (value) => {
+      const normalized = (value - min) / range;
+      return chartBottom - normalized * chartHeight;
+    };
 
     return dataset.map((item, index) => ({
-      x: (index / (dataset.length - 1)) * 750 + 25, // 在SVG坐标系中的x位置
-      yOpen: 300 - ((item.open - 2400) / 200) * 250, // 开盘价在SVG坐标系中的y位置
-      yHigh: 300 - ((item.high - 2400) / 200) * 250, // 最高价在SVG坐标系中的y位置
-      yLow: 300 - ((item.low - 2400) / 200) * 250, // 最低价在SVG坐标系中的y位置
-      yClose: 300 - ((item.close - 2400) / 200) * 250, // 收盘价在SVG坐标系中的y位置
+      x: chartLeft + xStep * index,
+      yOpen: scaleY(item.open),
+      yHigh: scaleY(item.high),
+      yLow: scaleY(item.low),
+      yClose: scaleY(item.close),
       open: item.open,
       high: item.high,
       low: item.low,
@@ -109,16 +166,13 @@ function PriceDashboard() {
     }
 
     const { min, max } = priceRange;
-    const range = max - min;
-    const step = range / 4; // 5个刻度点（包括最小和最大）
-    
-    return [
-      Math.ceil(max),
-      Math.ceil(max - step),
-      Math.ceil(max - step * 2),
-      Math.ceil(max - step * 3),
-      Math.floor(min)
-    ].reverse();
+    const range = max - min || 1;
+    const step = range / 4; // 5个刻度点
+
+    return new Array(5).fill(0).map((_, idx) => {
+      const value = max - step * idx;
+      return Math.round(value);
+    });
   };
 
   const renderChart = () => {
@@ -220,7 +274,7 @@ function PriceDashboard() {
                 </div>
                 <div className="chart-area">
                     <div className="y-axis">
-                        {[2600, 2550, 2500, 2450, 2400].map((price) => (
+                        {yTicks.map((price) => (
                             <div key={price} className="y-tick">
                                 {price}
                             </div>

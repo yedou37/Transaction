@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import './ArbitrageAnalysis.css';
 
 // API基础URL（根据项目配置调整）
-const API_BASE_URL = process.env.REACT_APP_API_URL || '/api';
+const DEFAULT_API_BASE = 'http://127.0.0.1:8000/api';
+const API_BASE_URL = process.env.REACT_APP_API_URL || DEFAULT_API_BASE;
 
 function ArbitrageAnalysis() {
   const [scrolled, setScrolled] = useState(false);
@@ -233,7 +234,8 @@ function ArbitrageAnalysis() {
                 onChange={(e) => setFilters({ ...filters, sortBy: e.target.value })}
               >
                 <option value="profit">按利润</option>
-                <option value="timestamp">按时间</option>
+                <option value="buy_timestamp">按买入时间</option>
+                <option value="sell_timestamp">按卖出时间</option>
               </select>
             </div>
             <div className="filter-group">
@@ -277,7 +279,8 @@ function ArbitrageAnalysis() {
                   <thead>
                     <tr>
                       <th>交易哈希</th>
-                      <th>时间</th>
+                      <th>买入时间</th>
+                      <th>卖出时间</th>
                       <th>Uniswap 价格</th>
                       <th>Binance 价格</th>
                       <th>价格差 (%)</th>
@@ -303,7 +306,8 @@ function ArbitrageAnalysis() {
                             '-'
                           )}
                         </td>
-                        <td>{formatDateTime(opp.timestamp)}</td>
+                        <td>{formatDateTime(opp.buy_timestamp)}</td>
+                        <td>{formatDateTime(opp.sell_timestamp)}</td>
                         <td>{formatNumber(opp.uniswap_price, 4)}</td>
                         <td>{formatNumber(opp.binance_price, 4)}</td>
                         <td className={opp.price_diff_percent >= 0 ? 'positive' : 'negative'}>
