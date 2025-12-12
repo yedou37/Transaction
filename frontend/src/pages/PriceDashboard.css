@@ -4,59 +4,58 @@
   --bg-hover: #2a2e39;
   --bg-input: #0b0e11;
   --bg-active-btn: #4c515d;
-
   --border-color: #2b3139;
-
   --text-primary: #eaecef;
   --text-secondary: #848e9c;
   --text-dim: #5e6673;
-
   --color-up: #0ecb81;
   --color-down: #f6465d;
   --color-gold: #f0b90b;
   --color-blue: #6366f1;
-
   --font-sans: "BinancePlex", -apple-system, BlinkMacSystemFont, "Segoe UI",
     Roboto, sans-serif;
   --font-mono: "Roboto Mono", "Consolas", monospace;
 }
 
-body,
-html {
-  margin: 0;
-  padding: 0;
-  background-color: var(--bg-dark);
-  font-family: var(--font-sans);
-  color: var(--text-primary);
-  height: 100vh;
-}
-
+/* --- 主容器布局 --- */
+/* --- 2. 容器：改为 Fixed 定位 --- */
 .dashboard-container {
+  position: fixed;
+
+  top: 64px;
+
+  bottom: 0;
+
+  /* 左右贴边 */
+  left: 0;
+  right: 0;
+
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  background-color: var(--bg-dark);
+
   overflow: hidden;
+
+  z-index: 1;
 }
 
-/* --- Header --- */
+/* --- 头部 Header --- */
 .dashboard-header {
-  height: 64px;
+  height: 70px;
   background-color: var(--bg-card);
   border-bottom: 1px solid var(--border-color);
   display: flex;
+  justify-content: space-between; /* 左右分开 */
   align-items: center;
   padding: 0 24px;
-  flex-shrink: 0;
+  flex-shrink: 0; /* 防止被压缩 */
 }
 
+/* 左侧币种 */
 .pair-info-group {
   display: flex;
   align-items: center;
-  padding-right: 32px;
-  border-right: 1px solid var(--border-color);
-  margin-right: 32px;
 }
-
 .coin-icon {
   width: 32px;
   height: 32px;
@@ -70,14 +69,13 @@ html {
   margin-right: 12px;
   color: #fff;
 }
-
 .pair-title {
   margin: 0;
   font-size: 18px;
   font-weight: 600;
   line-height: 1.2;
+  color: #ffffff;
 }
-
 .tag-source {
   font-size: 11px;
   color: var(--text-secondary);
@@ -88,67 +86,75 @@ html {
   display: inline-block;
 }
 
+/* 右侧统计数据 */
 .stats-group {
   display: flex;
   gap: 32px;
-  flex: 1;
+  align-items: center;
 }
-
 .stat-block {
   display: flex;
   flex-direction: column;
-  justify-content: center;
-}
+  align-items: flex-start;
 
+  width: 110px;
+
+  flex-shrink: 0;
+}
 .stat-label {
-  font-size: 11px;
+  font-size: 10px;
   color: var(--text-secondary);
-  margin-top: 2px;
+  margin-bottom: 4px;
 }
-
 .stat-value {
-  font-size: 13px;
+  font-size: 12px;
   font-family: var(--font-mono);
   font-weight: 500;
 }
-
 .current-price {
   font-size: 16px;
   font-family: var(--font-mono);
   font-weight: 600;
 }
 
-/* --- Main Layout --- */
+/* 颜色工具类 */
+.text-up {
+  color: var(--color-up);
+}
+.text-down {
+  color: var(--color-down);
+}
+.text-gold {
+  color: var(--color-gold);
+}
+.text-normal {
+  color: var(--text-primary);
+}
+.text-dim {
+  color: var(--text-dim);
+}
+
+/* --- 主体区域 (Chart + Table) --- */
 .dashboard-main {
-  flex: 1;
+  flex: 1; /* 占据剩余全部高度 */
   display: flex;
   padding: 6px;
   gap: 6px;
+  min-height: 0; /* 关键：允许 flex 子元素缩小，不撑破父容器 */
   overflow: hidden;
-  background-color: var(--bg-dark);
 }
 
-.chart-card,
-.table-card {
+/* --- 图表卡片 --- */
+.chart-card {
+  flex: 1; /* 占据主要宽度 */
   background-color: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: 4px;
   display: flex;
   flex-direction: column;
-}
-
-.chart-card {
-  flex: 3;
   min-width: 0;
 }
 
-.table-card {
-  flex: 1;
-  max-width: 340px;
-  min-width: 280px;
-}
-
-/* --- Chart Toolbar --- */
 .chart-toolbar {
   height: 48px;
   border-bottom: 1px solid var(--border-color);
@@ -156,61 +162,28 @@ html {
   justify-content: space-between;
   align-items: center;
   padding: 0 16px;
-  background-color: var(--bg-card);
-  flex-shrink: 0; /* 防止工具栏被压缩 */
+  flex-shrink: 0;
 }
-
+/* 工具栏按钮样式 */
 .toolbar-group {
   display: flex;
   align-items: center;
   gap: 12px;
 }
-
 .toolbar-label {
   font-size: 12px;
   color: var(--text-secondary);
   font-weight: 500;
 }
-
-.time-btns {
-  display: flex;
-  background-color: var(--bg-input);
-  padding: 2px;
-  border-radius: 4px;
-  border: 1px solid var(--border-color);
-}
-
-.time-btn {
-  background: transparent;
-  border: none;
-  color: var(--text-secondary);
-  font-size: 12px;
-  padding: 4px 12px;
-  cursor: pointer;
-  border-radius: 2px;
-  font-weight: 500;
-  transition: all 0.2s;
-  outline: none;
-}
-
-.time-btn:hover {
-  color: var(--text-primary);
-}
-
-.time-btn.active {
-  background-color: var(--bg-hover);
-  color: var(--color-gold);
-}
-
+.time-btns,
 .segmented-control {
   display: flex;
   background-color: var(--bg-input);
   padding: 2px;
   border-radius: 4px;
   border: 1px solid var(--border-color);
-  align-items: center;
 }
-
+.time-btn,
 .segmented-control button {
   background: transparent;
   border: none;
@@ -222,96 +195,74 @@ html {
   font-weight: 500;
   transition: all 0.2s;
 }
-
+.time-btn:hover,
 .segmented-control button:hover {
   color: var(--text-primary);
 }
-
+.time-btn.active {
+  background-color: var(--bg-hover);
+  color: var(--color-gold);
+}
 .segmented-control .divider {
   width: 1px;
   height: 12px;
   background-color: var(--border-color);
   margin: 0 2px;
 }
-
 .segmented-control button.active-uni {
   background-color: var(--bg-active-btn);
   color: var(--color-blue);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
 }
-
 .segmented-control button.active-bin {
   background-color: var(--bg-active-btn);
   color: var(--color-gold);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
-/* --- Chart Area (Fixing Height Issues) --- */
+/* 绘图区 */
 .chart-area {
-  flex: 1; /* 占据剩余空间 */
+  flex: 1;
   position: relative;
-  cursor: crosshair;
   width: 100%;
-  height: 100%; /* 确保填满父容器 */
+  height: 100%;
   overflow: hidden;
-  padding-bottom: 24px;
+  cursor: crosshair;
 }
-
 .chart-svg {
   display: block;
-  overflow: visible;
 }
 
-/* Floating Tooltip Style (Binance-like) */
-.floating-tooltip {
-  position: absolute;
-  z-index: 20;
-  background-color: rgba(30, 35, 41, 0.95); /* 深色半透明背景 */
-  border: 1px solid var(--border-color);
-  border-radius: 4px;
-  padding: 8px 12px;
-  pointer-events: none; /* 鼠标穿透，防止闪烁 */
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
-  min-width: 140px;
-}
-
-.tooltip-date {
-  font-size: 12px;
-  font-weight: bold;
-  color: var(--text-secondary);
-  margin-bottom: 6px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  padding-bottom: 4px;
-}
-
-.tooltip-row {
-  display: flex;
-  justify-content: space-between;
-  font-size: 11px;
-  margin-bottom: 3px;
-  color: var(--text-secondary);
-}
-
-.tooltip-row .font-mono {
-  color: var(--text-primary);
-  font-weight: 500;
-}
-
-/* Chart Lines */
+/* 坐标轴与十字准星 */
 .grid-line {
   stroke: var(--border-color);
-  stroke-width: 1px;
+  stroke-width: 2px;
   stroke-dasharray: 2 2;
-  opacity: 0.5;
+  opacity: 0.9;
 }
-
 .axis-label {
   fill: var(--text-secondary);
   font-size: 10px;
   font-family: var(--font-mono);
   text-anchor: end;
 }
+.x-axis {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 24px;
+  border-top: 1px solid var(--border-color);
+  pointer-events: none;
+}
+.x-axis span {
+  position: absolute;
+  top: 6px;
+  font-size: 10px;
+  color: var(--text-secondary);
+  transform: translateX(-50%);
+  font-family: var(--font-mono);
+}
 
+/* K线样式 */
 .stroke-up {
   stroke: var(--color-up);
   stroke-width: 1.2;
@@ -327,34 +278,68 @@ html {
   fill: var(--color-down);
 }
 
+/* 十字准星样式 */
 .crosshair-line {
   stroke: #ffffff;
   stroke-width: 1px;
   stroke-dasharray: 4 4;
-  opacity: 0.3;
+  opacity: 0.4;
   pointer-events: none;
 }
-
-.x-axis {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 24px;
-  border-top: 1px solid var(--border-color);
-  pointer-events: none;
+.axis-cursor-label-bg {
+  fill: #363c4e;
+  rx: 2;
 }
-
-.x-axis span {
-  position: absolute;
-  top: 6px;
+.axis-cursor-label-text {
+  fill: #fff;
   font-size: 10px;
-  color: var(--text-secondary);
-  transform: translateX(-50%);
   font-family: var(--font-mono);
+  alignment-baseline: middle;
+  text-anchor: middle;
 }
 
-/* --- Table --- */
+/* Tooltip */
+.floating-tooltip {
+  position: absolute;
+  z-index: 20;
+  background-color: rgba(30, 35, 41, 0.95);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 8px 12px;
+  pointer-events: none;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+  min-width: 140px;
+}
+.tooltip-date {
+  font-size: 12px;
+  font-weight: bold;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: 4px;
+}
+.tooltip-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  margin-bottom: 3px;
+  color: var(--text-secondary);
+}
+.tooltip-row .font-mono {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+/* --- 右侧表格卡片 --- */
+.table-card {
+  width: 300px; /* 固定宽度 */
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
 .table-header {
   padding: 12px 16px;
   border-bottom: 1px solid var(--border-color);
@@ -367,28 +352,16 @@ html {
   font-weight: 500;
 }
 
+/* 只有这里允许垂直滚动 */
 .table-body {
   flex: 1;
   overflow-y: auto;
 }
-
-.table-body::-webkit-scrollbar {
-  width: 4px;
-}
-.table-body::-webkit-scrollbar-track {
-  background: var(--bg-card);
-}
-.table-body::-webkit-scrollbar-thumb {
-  background: #2b3139;
-  border-radius: 2px;
-}
-
-table {
+.table-body table {
   width: 100%;
   border-collapse: collapse;
 }
-
-th {
+.table-body th {
   font-size: 11px;
   color: var(--text-secondary);
   font-weight: normal;
@@ -397,52 +370,42 @@ th {
   top: 0;
   background-color: var(--bg-card);
   z-index: 5;
+  text-align: right;
 }
-
-td {
+.table-body th:first-child {
+  text-align: left;
+}
+.table-body td {
   font-size: 12px;
   font-family: var(--font-mono);
   padding: 4px 12px;
   border: none;
   cursor: default;
 }
-
 .row-hover {
   background-color: var(--bg-hover);
 }
 
-/* Utilities */
-.text-up {
-  color: var(--color-up);
+/* 表格滚动条美化 */
+.table-body::-webkit-scrollbar {
+  width: 4px;
 }
-.text-down {
-  color: var(--color-down);
+.table-body::-webkit-scrollbar-track {
+  background: transparent;
 }
-.text-normal {
-  color: var(--text-primary);
-}
-.text-dim {
-  color: var(--text-dim);
-}
-.text-left {
-  text-align: left;
-}
-.text-right {
-  text-align: right;
-}
-.text-center {
-  text-align: center;
+.table-body::-webkit-scrollbar-thumb {
+  background: #3b4148;
+  border-radius: 2px;
 }
 
+/* Loading/Error */
 .loading-screen,
 .error-screen {
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 100vh;
+  height: calc(100vh - 64px);
   background-color: var(--bg-dark);
   color: var(--text-secondary);
-}
-.error-screen {
-  color: var(--color-down);
+  margin-top: 64px;
 }

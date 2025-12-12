@@ -7,17 +7,16 @@ const PriceDashboard = () => {
   const [error, setError] = useState(null);
 
   const [dataSource, setDataSource] = useState("uniswap");
-  const [visibleCount, setVisibleCount] = useState(30);
+  const [visibleCount, setVisibleCount] = useState(60);
   const [hoveredItem, setHoveredItem] = useState(null);
 
-  // --- 数据加载 (保持不变) ---
+  // --- 数据加载 (Mock) ---
   useEffect(() => {
     const loadData = async () => {
       try {
         setLoading(true);
         await new Promise((resolve) => setTimeout(resolve, 800));
-        const data = generateMockData();
-        setPriceData(data);
+        setPriceData(generateMockData());
       } catch (err) {
         setError(err.message || "Failed to load data");
       } finally {
@@ -31,12 +30,10 @@ const PriceDashboard = () => {
     const uniswapData = [];
     const binanceData = [];
     const totalDays = 180;
-
     for (let i = 1; i <= totalDays; i++) {
       const trend = i * 2;
       const volatility = 40;
       const basePrice = 2500 + Math.sin(i * 0.1) * 200 + trend;
-
       const date = new Date();
       date.setDate(date.getDate() - (totalDays - i));
       const month = (date.getMonth() + 1).toString().padStart(2, "0");
@@ -44,16 +41,12 @@ const PriceDashboard = () => {
       const dateStr = `${date.getFullYear()}-${month}-${day}`;
       const displayTime = `${month}-${day}`;
 
-      // Uniswap
-      const uOpenOffset = (Math.random() - 0.5) * volatility;
-      const uCloseOffset = (Math.random() - 0.5) * volatility;
-      const uOpen = basePrice + uOpenOffset;
-      const uClose = basePrice + uCloseOffset;
+      const uOpen = basePrice + (Math.random() - 0.5) * volatility;
+      const uClose = basePrice + (Math.random() - 0.5) * volatility;
       const uHigh =
         Math.max(uOpen, uClose) + Math.random() * (volatility * 0.5);
       const uLow = Math.min(uOpen, uClose) - Math.random() * (volatility * 0.5);
       const uVol = Math.random() * 1000 + 500;
-
       uniswapData.push({
         id: i,
         timestamp: dateStr,
@@ -65,15 +58,13 @@ const PriceDashboard = () => {
         volume: uVol,
       });
 
-      // Binance
       const bBase = basePrice + (Math.random() - 0.5) * 15;
-      const bOpen = bBase + uOpenOffset;
-      const bClose = bBase + uCloseOffset;
+      const bOpen = bBase + (Math.random() - 0.5) * volatility;
+      const bClose = bBase + (Math.random() - 0.5) * volatility;
       const bHigh =
         Math.max(bOpen, bClose) + Math.random() * (volatility * 0.5);
       const bLow = Math.min(bOpen, bClose) - Math.random() * (volatility * 0.5);
       const bVol = uVol * 1.5;
-
       binanceData.push({
         id: i,
         timestamp: dateStr,
@@ -88,43 +79,52 @@ const PriceDashboard = () => {
     return { uniswap: uniswapData, binance: binanceData };
   };
 
-  const fullData = useMemo(() => {
-    if (!priceData) return [];
-    return priceData[dataSource];
-  }, [priceData, dataSource]);
-
+  const fullData = useMemo(
+    () => (priceData ? priceData[dataSource] : []),
+    [priceData, dataSource]
+  );
   const activeData = useMemo(() => {
-    if (!fullData || !fullData.length) return [];
+    if (!fullData.length) return [];
     const safeCount = Math.min(visibleCount, fullData.length);
     return fullData.slice(-safeCount);
   }, [fullData, visibleCount]);
 
-  const currentStats = useMemo(() => {
-    if (!activeData || !activeData.length) return null;
-    const latest = activeData[activeData.length - 1];
-    const allHighs = activeData.map((d) => d.high);
-    const maxPrice = Math.max(...allHighs);
-    const change = latest.close - latest.open;
-    const changePercent = (change / latest.open) * 100;
+  // --- 核心修改：displayStats 逻辑 ---
+  const displayStats = useMemo(() => {
+    // 1. 确定目标数据：是 Hover 的那条，还是最新那条？
+    const target =
+      hoveredItem ||
+      (activeData.length > 0 ? activeData[activeData.length - 1] : null);
+
+    if (!target) return null;
+
+    // 2. 计算通用指标 (Period High 是整个可视区域的最高，不应该随 hover 变化，否则没意义)
+    const periodHigh = Math.max(...activeData.map((d) => d.high));
+
+    // 3. 计算特定指标 (基于 target)
+    const change = target.close - target.open;
+    const changePercent = (change / target.open) * 100;
+    const isRising = target.close >= target.open;
 
     return {
-      price: latest.close,
-      high: latest.high,
-      low: latest.low,
-      volume: latest.volume,
+      price: target.close,
+      open: target.open,
+      high: target.high,
+      low: target.low,
+      volume: target.volume,
       change,
       changePercent,
-      maxPrice,
+      isRising,
+      periodHigh, // 保持全局上下文
+      timestamp: target.timestamp, // 用于显示当前是哪一天的数据
     };
-  }, [activeData]);
+  }, [activeData, hoveredItem]);
 
-  // --- 尺寸与绘图逻辑 ---
-
+  // --- 尺寸与交互 ---
   const containerRef = useRef(null);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
-  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0, active: false });
 
-  // 监听窗口大小变化
   useEffect(() => {
     const updateSize = () => {
       if (containerRef.current) {
@@ -134,51 +134,47 @@ const PriceDashboard = () => {
         });
       }
     };
-
     window.addEventListener("resize", updateSize);
-
-    // 关键：延迟一下确保 DOM 渲染完毕后再计算，防止高度为 0
-    const timer = setTimeout(updateSize, 0);
-
-    return () => {
-      window.removeEventListener("resize", updateSize);
-      clearTimeout(timer);
-    };
-  }, [loading]); // 当 loading 结束时也会触发一次
+    setTimeout(updateSize, 0);
+    return () => window.removeEventListener("resize", updateSize);
+  }, [loading]);
 
   const handleZoom = (delta) => {
-    if (!fullData || !fullData.length) return;
+    if (!fullData.length) return;
     setVisibleCount((prev) =>
-      Math.max(7, Math.min(prev + delta, fullData.length))
+      Math.max(10, Math.min(prev + delta, fullData.length))
     );
   };
 
   useEffect(() => {
-    const element = containerRef.current;
-    if (!element) return;
+    const el = containerRef.current;
+    if (!el) return;
     const handleWheel = (e) => {
       e.preventDefault();
       const zoomStrength = Math.abs(e.deltaY) > 50 ? 5 : 2;
-      const direction = e.deltaY > 0 ? 1 : -1;
-      handleZoom(direction * zoomStrength);
+      handleZoom(e.deltaY > 0 ? zoomStrength : -zoomStrength);
     };
-    element.addEventListener("wheel", handleWheel, { passive: false });
-    return () => element.removeEventListener("wheel", handleWheel);
+    el.addEventListener("wheel", handleWheel, { passive: false });
+    return () => el.removeEventListener("wheel", handleWheel);
   }, [fullData]);
 
-  // 生成绘图点
-  const { points, yTicks } = useMemo(() => {
-    if (!activeData.length || !dimensions.width || !dimensions.height)
-      return { points: [], yTicks: [] };
-
-    const paddingY = 30; // 增加一点上下留白
+  // --- 绘图计算 ---
+  const chartMetrics = useMemo(() => {
+    if (!activeData.length || !dimensions.height) return null;
+    const paddingY = 40;
     const minPrice = Math.min(...activeData.map((d) => d.low));
     const maxPrice = Math.max(...activeData.map((d) => d.high));
-    const range = maxPrice - minPrice;
-    const safeRange = range === 0 ? 1 : range;
+    const range = maxPrice - minPrice || 1;
+    return { minPrice, maxPrice, range, paddingY };
+  }, [activeData, dimensions.height]);
 
+  const { points, yTicks } = useMemo(() => {
+    if (!activeData.length || !dimensions.width || !chartMetrics)
+      return { points: [], yTicks: [] };
+
+    const { minPrice, range, paddingY } = chartMetrics;
     const getY = (price) => {
-      const ratio = (price - minPrice) / safeRange;
+      const ratio = (price - minPrice) / range;
       const drawHeight = dimensions.height - paddingY * 2;
       return dimensions.height - paddingY - ratio * drawHeight;
     };
@@ -187,7 +183,7 @@ const PriceDashboard = () => {
     const xStep = dimensions.width / count;
     const candleWidth = Math.max(1, Math.min(xStep * 0.7, 40));
 
-    const points = activeData.map((d, i) => ({
+    const pts = activeData.map((d, i) => ({
       ...d,
       x: i * xStep + xStep / 2,
       xStart: i * xStep,
@@ -199,14 +195,21 @@ const PriceDashboard = () => {
       isRising: d.close >= d.open,
     }));
 
-    const yTicks = [];
+    const ticks = [];
     for (let i = 0; i <= 5; i++) {
-      const val = minPrice + (safeRange * i) / 5;
-      yTicks.push({ val, y: getY(val) });
+      const val = minPrice + (range * i) / 5;
+      ticks.push({ val, y: getY(val) });
     }
+    return { points: pts, yTicks: ticks };
+  }, [activeData, dimensions, chartMetrics]);
 
-    return { points, yTicks };
-  }, [activeData, dimensions]);
+  const cursorPrice = useMemo(() => {
+    if (!chartMetrics || !mousePos.active) return null;
+    const { minPrice, range, paddingY } = chartMetrics;
+    const drawHeight = dimensions.height - paddingY * 2;
+    const ratio = (dimensions.height - paddingY - mousePos.y) / drawHeight;
+    return minPrice + ratio * range;
+  }, [mousePos, chartMetrics, dimensions]);
 
   const handleMouseMove = (e) => {
     if (containerRef.current) {
@@ -214,21 +217,15 @@ const PriceDashboard = () => {
       setMousePos({
         x: e.clientX - rect.left,
         y: e.clientY - rect.top,
+        active: true,
       });
     }
   };
 
-  // 恢复原来逻辑：鼠标悬停在特定蜡烛上
-  const handleMouseEnterPoint = (point) => {
-    setHoveredItem(point);
-  };
-
   const handleMouseLeave = () => {
     setHoveredItem(null);
+    setMousePos((prev) => ({ ...prev, active: false }));
   };
-
-  // 查找当前 hover 的数据（用于 Tooltip）
-  const tooltipData = hoveredItem;
 
   if (loading)
     return <div className="loading-screen">Loading Market Data...</div>;
@@ -236,7 +233,7 @@ const PriceDashboard = () => {
 
   return (
     <div className="dashboard-container">
-      {/* 1. Header (保持你的新样式) */}
+      {/* 头部信息 - 现已改为根据 displayStats 动态显示 */}
       <header className="dashboard-header">
         <div className="pair-info-group">
           <div className="coin-icon">ETH</div>
@@ -246,59 +243,77 @@ const PriceDashboard = () => {
               <span className="tag-source">
                 {dataSource === "uniswap" ? "Uniswap V3" : "Binance"}
               </span>
+              {/* 可选：显示当前头部数据对应的日期，如果不想显示可去掉 */}
+              {hoveredItem && (
+                <span className="tag-source" style={{ marginLeft: 8 }}>
+                  {hoveredItem.timestamp}
+                </span>
+              )}
             </div>
           </div>
         </div>
 
-        {currentStats && (
+        {displayStats && (
           <div className="stats-group">
             <div className="stat-block">
+              {/* 这里的 Label 当 hover 时其实是指 specific candle price，但保持 Current Price 也是业内的通用做法 */}
+              <span className="stat-label">Price</span>
               <span
                 className={`current-price ${
-                  currentStats.change >= 0 ? "text-up" : "text-down"
+                  displayStats.isRising ? "text-up" : "text-down"
                 }`}
               >
-                ${currentStats.price.toFixed(2)}
+                ${displayStats.price.toFixed(2)}
               </span>
-              <span className="stat-label">Last Price</span>
             </div>
             <div className="stat-block">
+              <span className="stat-label">Change</span>
               <span
                 className={`stat-value ${
-                  currentStats.change >= 0 ? "text-up" : "text-down"
+                  displayStats.isRising ? "text-up" : "text-down"
                 }`}
               >
-                {currentStats.change >= 0 ? "+" : ""}
-                {currentStats.changePercent.toFixed(2)}%
+                {displayStats.change >= 0 ? "+" : ""}
+                {displayStats.change.toFixed(2)} (
+                {displayStats.changePercent.toFixed(2)}%)
               </span>
-              <span className="stat-label">24h Change</span>
             </div>
             <div className="stat-block">
+              <span className="stat-label">High</span>
               <span className="stat-value text-normal">
-                ${currentStats.high.toFixed(2)}
+                ${displayStats.high.toFixed(2)}
               </span>
-              <span className="stat-label">24h High</span>
             </div>
             <div className="stat-block">
+              <span className="stat-label">Low</span>
               <span className="stat-value text-normal">
-                ${currentStats.volume.toFixed(0)}
+                ${displayStats.low.toFixed(2)}
               </span>
-              <span className="stat-label">24h Volume</span>
+            </div>
+            {/* Period High 保持不变，始终显示可视区域最大值 */}
+            <div className="stat-block">
+              <span className="stat-label">Period High</span>
+              <span className="stat-value text-gold">
+                ${displayStats.periodHigh.toFixed(2)}
+              </span>
+            </div>
+            <div className="stat-block">
+              <span className="stat-label">Volume</span>
+              <span className="stat-value text-normal">
+                {displayStats.volume.toFixed(0)}
+              </span>
             </div>
           </div>
         )}
       </header>
 
-      {/* 2. Main Content */}
       <main className="dashboard-main">
-        {/* Left: Chart Section */}
         <section className="chart-card">
-          {/* Toolbar (保持你的新样式) */}
           <div className="chart-toolbar">
             <div className="toolbar-group">
               <span className="toolbar-label">Time</span>
               <div className="time-btns">
-                {[7, 30, 90].map((d) => (
+                {[30, 90, 180].map((d) => (
                   <button
                     key={d}
                     onClick={() => setVisibleCount(d)}
@@ -309,7 +324,6 @@ const PriceDashboard = () => {
                 ))}
               </div>
             </div>
-
             <div className="toolbar-group">
               <div className="segmented-control">
                 <button
@@ -329,20 +343,13 @@ const PriceDashboard = () => {
             </div>
           </div>
 
-          {/* Chart Canvas */}
           <div
             className="chart-area"
             ref={containerRef}
             onMouseMove={handleMouseMove}
             onMouseLeave={handleMouseLeave}
           >
-            {/* 
-                修正重点：移除了 .ohlc-legend，改为下方的 floating tooltip 
-                同时确保 svg 占满空间
-             */}
-
             <svg width="100%" height="100%" className="chart-svg">
-              {/* Grid Lines */}
               {yTicks.map((t, i) => (
                 <g key={i}>
                   <line
@@ -362,9 +369,8 @@ const PriceDashboard = () => {
                 </g>
               ))}
 
-              {/* Candles */}
               {points.map((p) => (
-                <g key={p.id} className="candle-group">
+                <g key={p.id}>
                   <line
                     x1={p.x}
                     y1={p.yHigh}
@@ -380,31 +386,57 @@ const PriceDashboard = () => {
                     className={p.isRising ? "fill-up" : "fill-down"}
                     shapeRendering="crispEdges"
                   />
-                  {/* Invisible Hit Area - 恢复这个逻辑用于触发 tooltip */}
                   <rect
                     x={p.xStart}
                     y="0"
                     width={dimensions.width / points.length}
                     height="100%"
                     fill="transparent"
-                    onMouseEnter={() => handleMouseEnterPoint(p)}
+                    onMouseEnter={() => setHoveredItem(p)}
                   />
                 </g>
               ))}
 
-              {/* Crosshair Line (可选，随鼠标位置) */}
-              {tooltipData && (
-                <line
-                  x1={tooltipData.x}
-                  y1="0"
-                  x2={tooltipData.x}
-                  y2="100%"
-                  className="crosshair-line"
-                />
+              {mousePos.active && (
+                <>
+                  {hoveredItem && (
+                    <line
+                      x1={hoveredItem.x}
+                      y1="0"
+                      x2={hoveredItem.x}
+                      y2="100%"
+                      className="crosshair-line"
+                    />
+                  )}
+                  <line
+                    x1="0"
+                    y1={mousePos.y}
+                    x2="100%"
+                    y2={mousePos.y}
+                    className="crosshair-line"
+                  />
+                  {cursorPrice && (
+                    <g
+                      transform={`translate(${dimensions.width - 55}, ${
+                        mousePos.y
+                      })`}
+                    >
+                      <rect
+                        x="0"
+                        y="-10"
+                        width="55"
+                        height="20"
+                        className="axis-cursor-label-bg"
+                      />
+                      <text x="27.5" y="1" className="axis-cursor-label-text">
+                        {cursorPrice.toFixed(2)}
+                      </text>
+                    </g>
+                  )}
+                </>
               )}
             </svg>
 
-            {/* X Axis Time Labels */}
             <div className="x-axis">
               {points
                 .filter((_, i) => i % Math.ceil(points.length / 6) === 0)
@@ -415,12 +447,11 @@ const PriceDashboard = () => {
                 ))}
             </div>
 
-            {/* 恢复：Floating Tooltip (跟随逻辑) */}
-            {tooltipData && (
+            {/* Tooltip 修改部分：增加颜色判断 logic */}
+            {hoveredItem && (
               <div
                 className="floating-tooltip"
                 style={{
-                  // 简单的防溢出逻辑：如果靠右，就显示在左边
                   left:
                     mousePos.x > dimensions.width / 2
                       ? mousePos.x - 180
@@ -428,49 +459,63 @@ const PriceDashboard = () => {
                   top: Math.min(mousePos.y, dimensions.height - 150),
                 }}
               >
-                <div className="tooltip-date">{tooltipData.timestamp}</div>
+                <div className="tooltip-date">{hoveredItem.timestamp}</div>
+
+                {/* 1. Open 一般保持白色或灰色 */}
                 <div className="tooltip-row">
                   <span>Open:</span>
                   <span className="font-mono">
-                    {tooltipData.open.toFixed(2)}
+                    {hoveredItem.open.toFixed(2)}
                   </span>
                 </div>
+
+                {/* 2. High 随 K线颜色 */}
                 <div className="tooltip-row">
                   <span>High:</span>
                   <span className="font-mono">
-                    {tooltipData.high.toFixed(2)}
+                    {hoveredItem.high.toFixed(2)}
                   </span>
                 </div>
+
+                {/* 3. Low 随 K线颜色 */}
                 <div className="tooltip-row">
                   <span>Low:</span>
                   <span className="font-mono">
-                    {tooltipData.low.toFixed(2)}
+                    {hoveredItem.low.toFixed(2)}
                   </span>
                 </div>
+
+                {/* 4. Close 严格根据涨跌变色 */}
                 <div className="tooltip-row">
                   <span>Close:</span>
                   <span
                     className={`font-mono ${
-                      tooltipData.isRising ? "text-up" : "text-down"
+                      hoveredItem.isRising ? "text-up" : "text-down"
                     }`}
                   >
-                    {tooltipData.close.toFixed(2)}
+                    {hoveredItem.close.toFixed(2)}
                   </span>
                 </div>
+
+                {/* 5. Vol 一般保持白色 */}
                 <div className="tooltip-row">
                   <span>Vol:</span>
                   <span className="font-mono">
-                    {tooltipData.volume.toFixed(0)}
+                    {hoveredItem.volume.toFixed(0)}
                   </span>
                 </div>
+
+                {/* 6. Chg 严格根据正负变色 */}
                 <div className="tooltip-row">
                   <span>Chg:</span>
                   <span
                     className={`font-mono ${
-                      tooltipData.isRising ? "text-up" : "text-down"
+                      hoveredItem.close - hoveredItem.open >= 0
+                        ? "text-up"
+                        : "text-down"
                     }`}
                   >
-                    {(tooltipData.close - tooltipData.open).toFixed(2)}
+                    {(hoveredItem.close - hoveredItem.open).toFixed(2)}
                   </span>
                 </div>
               </div>
@@ -478,7 +523,6 @@ const PriceDashboard = () => {
           </div>
         </section>
 
-        {/* Right: Order List (保持不变) */}
         <aside className="table-card">
           <div className="table-header">
             <h3>Market Trades</h3>
@@ -502,7 +546,6 @@ const PriceDashboard = () => {
                         : ""
                     }
                     onMouseEnter={() => setHoveredItem(row)}
-                    onMouseLeave={() => setHoveredItem(null)}
                   >
                     <td className="text-left text-dim">{row.displayTime}</td>
                     <td
