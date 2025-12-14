@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
-from sqlalchemy import func, cast, Date, text
+from sqlalchemy import func, cast, Date, text, and_
 from datetime import datetime, timezone, time
 from typing import List, Dict, Optional
 from .database import engine, Base, get_db
@@ -212,20 +212,21 @@ def get_arbitrage_statistics(db: Session = Depends(get_db)):
     }
 
 
-@app.get("/api/arbitrage/opportunities")
-def get_arbitrage_opportunities(
+@app.get("/api/arbitrage/behaviors")
+def get_arbitrage_behaviors(
     page: int = 1,
     page_size: int = 10,
-    sort_by: str = "profit",  # profit | timestamp
+    sort_by: str = "profit",  # profit | buy_timestamp | sell_timestamp
     sort_order: str = "desc",
     min_profit: Optional[float] = None,
     db: Session = Depends(get_db),
 ):
     """
-    Signature: `GET /api/arbitrage/opportunities`
+    Signature: `GET /api/arbitrage/behaviors`
 
     Description:
-    分页返回预计算的套利机会，支持最小利润过滤和排序。
+    分页返回识别出的套利行为，支持最小利润过滤和排序。
+    与套利机会的区别：移除了 transaction_hash、timestamp、volume，新增了 direction 字段。
     """
     page = max(1, page)
     page_size = max(1, min(100, page_size))
@@ -237,7 +238,6 @@ def get_arbitrage_opportunities(
     total = query.count()
     sort_column_map = {
         "profit": models.ArbitrageOpportunity.profit,
-        "timestamp": models.ArbitrageOpportunity.timestamp,
         "buy_timestamp": models.ArbitrageOpportunity.buy_timestamp,
         "sell_timestamp": models.ArbitrageOpportunity.sell_timestamp,
     }
@@ -265,8 +265,6 @@ def get_arbitrage_opportunities(
         data.append(
             {
                 "id": opp.id,
-                "transaction_hash": opp.transaction_hash,
-                "timestamp": serialize_timestamp(opp.timestamp),
                 "buy_timestamp": serialize_timestamp(opp.buy_timestamp),
                 "sell_timestamp": serialize_timestamp(opp.sell_timestamp),
                 "uniswap_price": opp.uniswap_price,
@@ -274,13 +272,13 @@ def get_arbitrage_opportunities(
                 "price_diff_percent": opp.price_diff_percent,
                 "profit": opp.profit,
                 "profit_rate": (opp.profit_rate or 0.0) * 100,
-                "volume": opp.volume,
+                "direction": opp.direction or "unknown",
             }
         )
 
     total_pages = max(1, (total + page_size - 1) // page_size) if total else 1
     return {
-        "opportunities": data,
+        "behaviors": data,
         "total_pages": total_pages,
         "total": total,
         "page": page,
