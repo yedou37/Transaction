@@ -284,3 +284,72 @@ def get_arbitrage_behaviors(
         "page": page,
         "page_size": page_size,
     }
+
+
+@app.get("/api/arbitrage/opportunities")
+def get_arbitrage_opportunities(
+    min_profit_rate: Optional[float] = None,
+    start_time: Optional[str] = None,
+    end_time: Optional[str] = None,
+    db: Session = Depends(get_db),
+):
+    """
+    Signature: `GET /api/arbitrage/opportunities`
+
+    Description:
+    获取预计算的套利机会列表（按分钟），支持最小利润率过滤和时间范围筛选。
+    这些机会表示在某个时间点，用户如果进行套利交易可能获得的利润。
+    """
+    query = db.query(models.ArbitrageOpportunityMinute)
+    
+    # 时间范围筛选
+    if start_time:
+        try:
+            start_dt = datetime.fromisoformat(start_time.replace('Z', '+00:00'))
+            if start_dt.tzinfo is None:
+                start_dt = start_dt.replace(tzinfo=timezone.utc)
+            query = query.filter(models.ArbitrageOpportunityMinute.timestamp >= start_dt)
+        except ValueError:
+            return {"error": "start_time 格式错误，请使用 ISO 8601 格式（如 2025-09-01T12:00:00Z）"}
+    
+    if end_time:
+        try:
+            end_dt = datetime.fromisoformat(end_time.replace('Z', '+00:00'))
+            if end_dt.tzinfo is None:
+                end_dt = end_dt.replace(tzinfo=timezone.utc)
+            query = query.filter(models.ArbitrageOpportunityMinute.timestamp <= end_dt)
+        except ValueError:
+            return {"error": "end_time 格式错误，请使用 ISO 8601 格式（如 2025-09-01T12:00:00Z）"}
+    
+    # 最小利润率筛选
+    if min_profit_rate is not None:
+        query = query.filter(models.ArbitrageOpportunityMinute.profit_rate >= min_profit_rate)
+    
+    # 按时间倒序排列（最新的在前）
+    opportunities = query.order_by(models.ArbitrageOpportunityMinute.timestamp.desc()).all()
+    
+    def serialize_timestamp(dt: Optional[datetime]) -> Optional[str]:
+        if not dt:
+            return None
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt.isoformat().replace("+00:00", "Z")
+    
+    data = []
+    for opp in opportunities:
+        data.append(
+            {
+                "id": opp.id,
+                "timestamp": serialize_timestamp(opp.timestamp),
+                "uniswap_price": opp.uniswap_price,
+                "binance_price": opp.binance_price,
+                "price_diff_percent": opp.price_diff_percent,
+                "profit": opp.profit,
+                "profit_rate": (opp.profit_rate or 0.0) * 100,  # 转换为百分比
+                "direction": opp.direction or "unknown",
+            }
+        )
+    
+    return {
+        "opportunities": data,
+    }

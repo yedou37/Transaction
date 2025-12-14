@@ -74,3 +74,23 @@ class ArbitrageOpportunity(Base):
     relative_spread = Column(Float)
     direction = Column(String, nullable=True)  # "cex->dex" or "dex->cex"
     created_at = Column(DateTime, server_default=func.now())
+
+
+class ArbitrageOpportunityMinute(Base):
+    """
+    按分钟预计算的套利机会
+    用于识别潜在的套利机会（用户在这个时间点进行交易可能获得的利润）
+    """
+    __tablename__ = "arbitrage_opportunities_minute"
+
+    id = Column(Integer, primary_key=True, index=True)
+    timestamp = Column(DateTime, index=True, unique=True)  # 分钟级时间戳（精确到分钟）
+    uniswap_price = Column(Float)  # 该分钟 Uniswap 平均价格
+    binance_price = Column(Float)  # 该分钟 Binance 平均价格
+    price_diff_percent = Column(Float)  # 价格差百分比
+    profit = Column(Float)  # 每 ETH 预期利润（USDT/ETH）
+    profit_rate = Column(Float)  # 利润率（小数，如 0.45 = 45%）
+    direction = Column(String)  # "cex->dex" or "dex->cex"
+    uniswap_trade_count = Column(Integer)  # 该分钟 Uniswap 交易数量
+    binance_trade_count = Column(Integer)  # 该分钟 Binance 交易数量
+    created_at = Column(DateTime, server_default=func.now())

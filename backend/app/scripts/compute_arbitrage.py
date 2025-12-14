@@ -22,6 +22,12 @@ PAIR_TIME_WINDOW_SEC: int = 300
 MIN_REL_SPREAD: float = 0.01
 MAX_GAS_FOR_SIMPLE_SWAP: int = 400000  # Heuristic 1 (第二组): gas限制
 
+# 手续费和滑点参数（与 compute_opportunities.py 保持一致）
+CEX_FEE_RATE = 0.001  # CEX 手续费率 0.1%
+CEX_SLIPPAGE = 0.001  # CEX 滑点 0.1%
+DEX_FEE_RATE = 0.003  # DEX 手续费率 0.3%
+DEX_SLIPPAGE = 0.002  # DEX 滑点 0.2%
+
 # ========== 已知路由器/交易机器人地址列表 ==========
 # Heuristic 5: 非已知路由器/交易机器人
 # 注意：地址已转换为小写以便比较
@@ -85,11 +91,11 @@ class UniswapSwapData:
 
     @property
     def fee_rate(self) -> float:
-        return 0.003
+        return DEX_FEE_RATE
 
     @property
     def slippage(self) -> float:
-        return 0.002
+        return DEX_SLIPPAGE
 
 
 @dataclass
@@ -106,11 +112,11 @@ class BinanceTradeData:
 
     @property
     def fee_rate(self) -> float:
-        return 0.001
+        return CEX_FEE_RATE
 
     @property
     def slippage(self) -> float:
-        return 0.001
+        return CEX_SLIPPAGE
 
 
 def to_unix(dt: datetime) -> int:
