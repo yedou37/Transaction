@@ -1,30 +1,59 @@
 import React, { useEffect, useState, useMemo, useRef } from "react";
 import "./PriceDashboard.css";
 
+const USE_BACKEND =
+  (process.env.REACT_APP_USE_BACKEND || "").toLowerCase() === "true";
+const API_BASE_URL = (process.env.REACT_APP_BACKEND_URL ||
+  "http://127.0.0.1:8000"
+).replace(/\/$/, "");
+
 const PriceDashboard = () => {
   const [priceData, setPriceData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [notice, setNotice] = useState("");
 
   const [dataSource, setDataSource] = useState("uniswap");
   const [visibleCount, setVisibleCount] = useState(60);
   const [hoveredItem, setHoveredItem] = useState(null);
 
-  // --- 数据加载 (Mock) ---
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        setLoading(true);
-        await new Promise((resolve) => setTimeout(resolve, 800));
-        setPriceData(generateMockData());
-      } catch (err) {
-        setError(err.message || "Failed to load data");
-      } finally {
-        setLoading(false);
-      }
+  const normalizeSeries = (series = []) => {
+    return series
+      .filter(Boolean)
+      .sort(
+        (a, b) =>
+          new Date(a.timestamp || 0).valueOf() -
+          new Date(b.timestamp || 0).valueOf()
+      )
+      .map((item, idx) => {
+        const ts = item.timestamp ? new Date(item.timestamp) : new Date();
+        const month = (ts.getMonth() + 1).toString().padStart(2, "0");
+        const day = ts.getDate().toString().padStart(2, "0");
+        return {
+          id: item.id ?? idx + 1,
+          timestamp: item.timestamp || ts.toISOString(),
+          displayTime: item.displayTime || `${month}-${day}`,
+          open: Number(item.open ?? 0),
+          high: Number(item.high ?? 0),
+          low: Number(item.low ?? 0),
+          close: Number(item.close ?? 0),
+          volume: Number(item.volume ?? 0),
+        };
+      });
+  };
+
+  const fetchBackendData = async () => {
+    const response = await fetch(`${API_BASE_URL}/api/price-data`);
+    if (!response.ok) {
+      throw new Error(`后端返回错误: ${response.status}`);
+    }
+    const data = await response.json();
+    const normalized = {
+      uniswap: normalizeSeries(data?.uniswap),
+      binance: normalizeSeries(data?.binance),
     };
-    loadData();
-  }, []);
+    return normalized;
+  };
 
   const generateMockData = () => {
     const uniswapData = [];
@@ -88,6 +117,38 @@ const PriceDashboard = () => {
     const safeCount = Math.min(visibleCount, fullData.length);
     return fullData.slice(-safeCount);
   }, [fullData, visibleCount]);
+
+  // --- 数据加载：优先用后端，无数据或失败时降级到 Mock 并提示 ---
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        if (USE_BACKEND) {
+          const backendData = await fetchBackendData();
+          if (!backendData.uniswap.length && !backendData.binance.length) {
+            setNotice("后端暂无价格数据，已显示模拟数据");
+            setPriceData(generateMockData());
+          } else {
+            setNotice("");
+            setPriceData(backendData);
+          }
+        } else {
+          setNotice("已使用模拟数据");
+          await new Promise((resolve) => setTimeout(resolve, 300));
+          setPriceData(generateMockData());
+        }
+      } catch (err) {
+        console.error("加载价格数据失败:", err);
+        setNotice("后端请求失败，已显示模拟数据");
+        setPriceData(generateMockData());
+        setError(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadData();
+  }, []);
 
   // --- 核心修改：displayStats 逻辑 ---
   const displayStats = useMemo(() => {
@@ -233,6 +294,21 @@ const PriceDashboard = () => {
 
   return (
     <div className="dashboard-container">
+      {notice && (
+        <div
+          style={{
+            background: "rgba(255, 215, 0, 0.1)",
+            color: "#b8860b",
+            border: "1px solid rgba(255, 215, 0, 0.6)",
+            padding: "8px 12px",
+            borderRadius: 8,
+            marginBottom: 12,
+            fontSize: 14,
+          }}
+        >
+          {notice}
+        </div>
+      )}
       {/* 头部信息 - 现已改为根据 displayStats 动态显示 */}
       <header className="dashboard-header">
         <div className="pair-info-group">
