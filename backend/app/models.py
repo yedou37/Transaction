@@ -7,6 +7,7 @@ from sqlalchemy import (
     BigInteger,
     UniqueConstraint,
     func,
+    Numeric,
 )
 from .database import Base
 
@@ -20,6 +21,19 @@ class UniswapSwap(Base):
     amount0 = Column(Float) # (例如 USDT)
     amount1 = Column(Float) # (例如 ETH)
     price = Column(Float)   # (USDT/ETH)
+    block_number = Column(BigInteger, index=True)
+    block_hash = Column(String)
+    transaction_index = Column(Integer)
+    sender = Column(String)
+    recipient = Column(String)
+    sqrt_price_x96 = Column(Numeric(precision=50, scale=0))
+    liquidity = Column(Numeric(precision=40, scale=0))
+    tick = Column(Integer)
+    gas_price_wei = Column(Numeric(precision=40, scale=0))
+    gas_used = Column(Numeric(precision=40, scale=0))
+    gas_fee_eth = Column(Float)
+    fee_amount = Column(Float)
+    slippage_bps = Column(Float)
 
     __table_args__ = (UniqueConstraint('transaction_hash', 'log_index', name='_tx_hash_log_index_uc'),)
 
@@ -30,6 +44,16 @@ class BinanceTrade(Base):
     timestamp = Column(DateTime, index=True)
     price = Column(Float)
     quantity = Column(Float)
+    open_time = Column(DateTime)
+    close_time = Column(DateTime)
+    open_price = Column(Float)
+    high_price = Column(Float)
+    low_price = Column(Float)
+    close_price = Column(Float)
+    quote_volume = Column(Float)
+    number_of_trades = Column(BigInteger)
+    taker_buy_base_volume = Column(Float)
+    taker_buy_quote_volume = Column(Float)
 
 class ArbitrageOpportunity(Base):
     __tablename__ = "arbitrage_opportunities"

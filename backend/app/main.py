@@ -1,8 +1,8 @@
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from sqlalchemy import func, cast, Date, text
-from datetime import datetime, timezone, time
+from datetime import datetime, timezone, time, date, timedelta
 from typing import List, Dict, Optional
 from .database import engine, Base, get_db
 from . import models
@@ -55,21 +55,94 @@ Returns:
     except Exception as e:
         return {"db_status": "error", "detail": str(e)}
 
+DEFAULT_PRICE_WINDOW_DAYS = 180  # 默认返回最近 30 天（含今天）的数据
+
+
+def _ensure_utc(dt: datetime) -> datetime:
+    """保证 datetime 带有 UTC 时区信息。"""
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
+
+
+def _daily_ohlcv(
+    db: Session,
+    model,
+    volume_expr,
+    start_dt: datetime,
+    end_dt: datetime,
+) -> List[Dict[str, float]]:
+    """
+    将任意包含 price/timestamp 的表聚合为日级 OHLCV。
+    额外返回 id（行号）和 displayTime 以兼容前端现有结构。
+    """
+    grouped = (
+        db.query(
+            cast(model.timestamp, Date).label("date"),
+            func.min(model.price).label("low"),
+            func.max(model.price).label("high"),
+            func.sum(volume_expr).label("volume"),
+        )
+        .filter(model.timestamp >= start_dt, model.timestamp <= end_dt)
+        .group_by(cast(model.timestamp, Date))
+        .order_by(cast(model.timestamp, Date))
+        .all()
+    )
+
+    results: List[Dict[str, float]] = []
+    for idx, row in enumerate(grouped, start=1):
+        current_date = row.date
+        first_trade = (
+            db.query(model)
+            .filter(cast(model.timestamp, Date) == current_date)
+            .order_by(model.timestamp.asc())
+            .first()
+        )
+        last_trade = (
+            db.query(model)
+            .filter(cast(model.timestamp, Date) == current_date)
+            .order_by(model.timestamp.desc())
+            .first()
+        )
+        if not first_trade or not last_trade:
+            continue
+
+        ts = _ensure_utc(datetime.combine(current_date, time.min))
+        results.append(
+            {
+                "id": idx,
+                "timestamp": ts.isoformat().replace("+00:00", "Z"),
+                "displayTime": ts.strftime("%m-%d"),
+                "open": float(first_trade.price or 0.0),
+                "high": float(row.high or first_trade.price or 0.0),
+                "low": float(row.low or first_trade.price or 0.0),
+                "close": float(last_trade.price or 0.0),
+                "volume": float(row.volume or 0.0),
+            }
+        )
+    return results
+
+
 @app.get("/api/price-data")
 def get_price_data(
-    start_date: Optional[str] = None,
-    end_date: Optional[str] = None,
+    start_date: Optional[date] = Query(
+        None, description="开始日期，格式 YYYY-MM-DD（默认返回最近 30 天）"
+    ),
+    end_date: Optional[date] = Query(
+        None, description="结束日期，格式 YYYY-MM-DD（默认今天，UTC）"
+    ),
     db: Session = Depends(get_db)
 ):
     """
     Signature: `GET /api/price-data`
     
     Description:
-    获取 Uniswap V3 和 Binance 的价格数据，按天聚合为 OHLC（开高低收）格式。
+    获取 Uniswap V3 和 Binance 的价格数据，按天聚合为 OHLC（开高低收）格式，
+    并提供前端图表直接可用的 displayTime/id 字段。
     
     Parameters:
-    - `start_date` (str, optional): 开始日期，格式为 "YYYY-MM-DD"，默认为 2025-09-01
-    - `end_date` (str, optional): 结束日期，格式为 "YYYY-MM-DD"，默认为 2025-09-30
+    - `start_date` (date, optional): 开始日期，格式为 "YYYY-MM-DD"，默认 = 结束日期往前 29 天
+    - `end_date` (date, optional): 结束日期，格式为 "YYYY-MM-DD"，默认 = 今天 (UTC)
     - `db` (Session): 通过依赖注入提供的数据库会话。
     
     Returns:
@@ -77,7 +150,7 @@ def get_price_data(
       {
         "uniswap": [
           {
-            "timestamp": "2025-09-01T12:00:00Z",
+            "timestamp": "2025-09-01T00:00:00Z",
             "open": 2500.0,
             "high": 2515.0,
             "low": 2490.0,
@@ -88,102 +161,30 @@ def get_price_data(
         "binance": [...]
       }
     """
-    # 默认时间范围：2025年9月
-    if not start_date:
-        start_date = "2025-09-01"
-    if not end_date:
-        end_date = "2025-09-30"
-    
-    try:
-        start_dt = datetime.strptime(start_date, "%Y-%m-%d").replace(tzinfo=timezone.utc)
-        end_dt = datetime.strptime(end_date, "%Y-%m-%d").replace(
-            hour=23, minute=59, second=59, tzinfo=timezone.utc
-        )
-    except ValueError:
-        return {"error": "日期格式错误，请使用 YYYY-MM-DD 格式"}
-    
-    # 查询 Uniswap 数据并按天聚合
-    uniswap_data = db.query(
-        cast(models.UniswapSwap.timestamp, Date).label('date'),
-        func.min(models.UniswapSwap.price).label('low'),
-        func.max(models.UniswapSwap.price).label('high'),
-        func.sum(func.abs(models.UniswapSwap.amount1)).label('volume')
-    ).filter(
-        models.UniswapSwap.timestamp >= start_dt,
-        models.UniswapSwap.timestamp <= end_dt
-    ).group_by(
-        cast(models.UniswapSwap.timestamp, Date)
-    ).order_by(
-        cast(models.UniswapSwap.timestamp, Date)
-    ).all()
-    
-    # 获取每天的第一笔和最后一笔交易价格（open 和 close）
-    uniswap_ohlc = []
-    for row in uniswap_data:
-        date = row.date
-        # 获取当天的第一笔交易（open）
-        first_trade = db.query(models.UniswapSwap).filter(
-            cast(models.UniswapSwap.timestamp, Date) == date
-        ).order_by(models.UniswapSwap.timestamp.asc()).first()
-        
-        # 获取当天的最后一笔交易（close）
-        last_trade = db.query(models.UniswapSwap).filter(
-            cast(models.UniswapSwap.timestamp, Date) == date
-        ).order_by(models.UniswapSwap.timestamp.desc()).first()
-        
-        if first_trade and last_trade:
-            # 将日期转换为 UTC 时间戳字符串（使用当天的 00:00:00）
-            date_dt = datetime.combine(date, time.min).replace(tzinfo=timezone.utc)
-            uniswap_ohlc.append({
-                "timestamp": date_dt.isoformat().replace('+00:00', 'Z'),
-                "open": float(first_trade.price),
-                "high": float(row.high),
-                "low": float(row.low),
-                "close": float(last_trade.price),
-                "volume": float(row.volume) if row.volume else 0.0
-            })
-    
-    # 查询 Binance 数据并按天聚合
-    binance_data = db.query(
-        cast(models.BinanceTrade.timestamp, Date).label('date'),
-        func.min(models.BinanceTrade.price).label('low'),
-        func.max(models.BinanceTrade.price).label('high'),
-        func.sum(models.BinanceTrade.quantity).label('volume')
-    ).filter(
-        models.BinanceTrade.timestamp >= start_dt,
-        models.BinanceTrade.timestamp <= end_dt
-    ).group_by(
-        cast(models.BinanceTrade.timestamp, Date)
-    ).order_by(
-        cast(models.BinanceTrade.timestamp, Date)
-    ).all()
-    
-    # 获取每天的第一笔和最后一笔交易价格（open 和 close）
-    binance_ohlc = []
-    for row in binance_data:
-        date = row.date
-        # 获取当天的第一笔交易（open）
-        first_trade = db.query(models.BinanceTrade).filter(
-            cast(models.BinanceTrade.timestamp, Date) == date
-        ).order_by(models.BinanceTrade.timestamp.asc()).first()
-        
-        # 获取当天的最后一笔交易（close）
-        last_trade = db.query(models.BinanceTrade).filter(
-            cast(models.BinanceTrade.timestamp, Date) == date
-        ).order_by(models.BinanceTrade.timestamp.desc()).first()
-        
-        if first_trade and last_trade:
-            # 将日期转换为 UTC 时间戳字符串（使用当天的 00:00:00）
-            date_dt = datetime.combine(date, time.min).replace(tzinfo=timezone.utc)
-            binance_ohlc.append({
-                "timestamp": date_dt.isoformat().replace('+00:00', 'Z'),
-                "open": float(first_trade.price),
-                "high": float(row.high),
-                "low": float(row.low),
-                "close": float(last_trade.price),
-                "volume": float(row.volume) if row.volume else 0.0
-            })
-    
+    today_utc = datetime.now(timezone.utc).date()
+    resolved_end = end_date or today_utc
+    resolved_start = start_date or (resolved_end - timedelta(days=DEFAULT_PRICE_WINDOW_DAYS - 1))
+    if resolved_start > resolved_end:
+        raise HTTPException(status_code=400, detail="start_date must not be after end_date")
+
+    start_dt = _ensure_utc(datetime.combine(resolved_start, time.min))
+    end_dt = _ensure_utc(datetime.combine(resolved_end, time.max))
+
+    uniswap_ohlc = _daily_ohlcv(
+        db,
+        models.UniswapSwap,
+        func.abs(models.UniswapSwap.amount1),
+        start_dt,
+        end_dt,
+    )
+    binance_ohlc = _daily_ohlcv(
+        db,
+        models.BinanceTrade,
+        models.BinanceTrade.quantity,
+        start_dt,
+        end_dt,
+    )
+
     return {
         "uniswap": uniswap_ohlc,
         "binance": binance_ohlc
