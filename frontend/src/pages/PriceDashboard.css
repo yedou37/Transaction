@@ -16,26 +16,47 @@
     Roboto, sans-serif;
   --font-mono: "Roboto Mono", "Consolas", monospace;
 }
+/* --- 1. 修复日历图标颜色 --- */
+.date-picker-input {
+  background-color: var(--bg-input);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 11px; /* 稍微调小一点日期文字 */
+  outline: none;
+  cursor: pointer;
+
+  /* 关键：告诉浏览器这里是暗色区域，浏览器会自动提供白色的小图标 */
+  color-scheme: dark;
+}
+
+.date-picker-input::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0.8;
+  /* 关键修复：去掉之前的 filter: invert(1)，因为 color-scheme 已经帮我们变白了 */
+  filter: none;
+}
+
+.date-picker-input::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+}
+/* --- 新增：高亮数字样式 (纯白) --- */
 
 /* --- 主容器布局 --- */
 /* --- 2. 容器：改为 Fixed 定位 --- */
+/* --- 布局核心 --- */
 .dashboard-container {
   position: fixed;
-
   top: 64px;
-
   bottom: 0;
-
-  /* 左右贴边 */
   left: 0;
   right: 0;
-
   display: flex;
   flex-direction: column;
   background-color: var(--bg-dark);
-
   overflow: hidden;
-
   z-index: 1;
 }
 
@@ -89,7 +110,7 @@
 /* 右侧统计数据 */
 .stats-group {
   display: flex;
-  gap: 32px;
+  gap: 30px;
   align-items: center;
 }
 .stat-block {
@@ -97,41 +118,50 @@
   flex-direction: column;
   align-items: flex-start;
 
-  width: 110px;
+  width: 120px;
 
   flex-shrink: 0;
 }
 .stat-label {
   font-size: 10px;
   color: var(--text-secondary);
-  margin-bottom: 4px;
+  margin-bottom: 6px;
 }
 .stat-value {
-  font-size: 12px;
+  font-size: 10px;
   font-family: var(--font-mono);
-  font-weight: 500;
-}
-.current-price {
-  font-size: 16px;
-  font-family: var(--font-mono);
-  font-weight: 600;
+  font-weight: 400;
+  color: #ffffff; /* 核心修复：默认为纯白 */
 }
 
-/* 颜色工具类 */
+/* --- 修改 2：强制颜色工具类生效 --- */
 .text-up {
-  color: var(--color-up);
+  color: var(--color-up) !important;
 }
 .text-down {
-  color: var(--color-down);
+  color: var(--color-down) !important;
 }
 .text-gold {
-  color: var(--color-gold);
-}
-.text-normal {
-  color: var(--text-primary);
+  color: var(--color-gold) !important;
 }
 .text-dim {
-  color: var(--text-dim);
+  color: var(--text-dim) !important;
+}
+.text-normal {
+  color: var(--text-primary) !important;
+}
+
+/* --- 修改 3：加强 text-bright 的权重 --- */
+.text-bright {
+  color: #ffffff !important;
+  font-weight: 400;
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.15);
+}
+
+.current-price {
+  font-size: 20px;
+  font-family: var(--font-mono);
+  font-weight: 600;
 }
 
 /* --- 主体区域 (Chart + Table) --- */
@@ -217,7 +247,26 @@
   background-color: var(--bg-active-btn);
   color: var(--color-gold);
 }
+/* --- 按钮样式扩展 --- */
+.segmented-control button.active-comp {
+  background-color: var(--bg-active-btn);
+  color: #fff; /* 或者使用其他醒目的颜色 */
+  font-weight: 600;
+}
 
+/* 提示通知样式 */
+.notice-bar {
+  position: absolute;
+  top: 75px;
+  left: 20px;
+  z-index: 30;
+  background: rgba(255, 215, 0, 0.1);
+  color: #b8860b;
+  border: 1px solid rgba(255, 215, 0, 0.6);
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 14px;
+}
 /* 绘图区 */
 .chart-area {
   flex: 1;
