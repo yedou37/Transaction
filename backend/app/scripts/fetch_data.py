@@ -455,17 +455,28 @@ def fetch_uniswap_data(db_session):
 
         try:
             response = requests.get(ETHERSCAN_API_URL, params=params, timeout=30)
+            status_code = response.status_code
+            rate_headers = {
+                "limit": response.headers.get("X-RateLimit-Limit"),
+                "remaining": response.headers.get("X-RateLimit-Remaining"),
+                "reset": response.headers.get("X-RateLimit-Reset"),
+                "retry_after": response.headers.get("Retry-After"),
+            }
             response.raise_for_status()
             response_data = response.json()
 
             if response_data.get("status") != "1":
                 error_message = response_data.get("message", "Unknown error")
                 result = response_data.get("result", "")
-                print(f"Etherscan API 返回错误: {error_message} - {result}")
+                print(
+                    f"Etherscan API 返回错误: {error_message} - {result} "
+                    f"(HTTP {status_code}, 速率头 {rate_headers})"
+                )
                 
-                if "rate limit" in error_message.lower():
-                    print("达到速率限制，等待5秒...")
-                    time.sleep(5)
+                if "rate limit" in error_message.lower() or status_code in (429, 418):
+                    wait_time = int(rate_headers.get("retry_after") or 5)
+                    print(f"达到速率限制，等待{wait_time}秒后重试...")
+                    time.sleep(wait_time)
                     continue
                 else:
                     # 如果不是速率限制，可能是无效的区块范围或其他问题，前进到下一个 chunk
@@ -556,6 +567,19 @@ def fetch_uniswap_data(db_session):
             else:
                 print(f"此区块范围无新数据")
 
+        except requests.exceptions.HTTPError as e:
+            body_snippet = ""
+            if e.response is not None:
+                try:
+                    body_snippet = e.response.text[:200]
+                except Exception:
+                    body_snippet = "<unavailable>"
+            print(
+                f"请求 Uniswap 数据时发生 HTTP 错误: {e} "
+                f"(状态 {getattr(e.response, 'status_code', 'unknown')}, 响应片段: {body_snippet})"
+            )
+            time.sleep(5)
+            continue
         except requests.exceptions.RequestException as e:
             print(f"请求 Uniswap 数据时发生错误: {e}")
             db_session.rollback()
