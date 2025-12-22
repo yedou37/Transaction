@@ -73,7 +73,8 @@ BINANCE_SCHEMA_UPDATES = [
     "ALTER TABLE binance_trades ADD COLUMN IF NOT EXISTS quote_volume DOUBLE PRECISION",
     "ALTER TABLE binance_trades ADD COLUMN IF NOT EXISTS number_of_trades BIGINT",
     "ALTER TABLE binance_trades ADD COLUMN IF NOT EXISTS taker_buy_base_volume DOUBLE PRECISION",
-    "ALTER TABLE binance_trades ADD COLUMN IF NOT EXISTS taker_buy_quote_volume DOUBLE PRECISION"
+    "ALTER TABLE binance_trades ADD COLUMN IF NOT EXISTS taker_buy_quote_volume DOUBLE PRECISION",
+    "ALTER TABLE uniswap_swaps ADD COLUMN IF NOT EXISTS log_index INTEGER"
 ]
 
 
