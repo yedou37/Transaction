@@ -7,12 +7,44 @@
 \usepackage{amsfonts}
 \usepackage{hyperref}
 \usepackage{listings}
+
+% 添加JavaScript语言定义
+\lstdefinelanguage{JavaScript}{
+  keywords={typeof, new, true, false, catch, function, return, null, catch, switch, var, if, in, while, do, else, case, break},
+  keywordstyle=\color{blue}\bfseries,
+  ndkeywords={class, export, boolean, throw, implements, import, this},
+  ndkeywordstyle=\color{darkgray}\bfseries,
+  identifierstyle=\color{black},
+  sensitive=false,
+  comment=[l]{//},
+  morecomment=[s]{/*}{*/},
+  commentstyle=\color{green!60!black},
+  stringstyle=\color{red},
+  morestring=[b]',
+  morestring=[b]"
+}
+
 \usepackage{xcolor}
 \usepackage{enumitem}
+\usepackage{float}
 \geometry{a4paper, margin=2.5cm}
 
+% 设置代码高亮样式
+\lstset{
+    basicstyle=\ttfamily\small,
+    keywordstyle=\color{blue},
+    commentstyle=\color{green!60!black},
+    stringstyle=\color{red},
+    frame=single,
+    breaklines=true,
+    postbreak=\mbox{\textcolor{red}{$\hookrightarrow$}\space},
+    numbers=left,
+    numberstyle=\tiny\color{gray},
+    showstringspaces=false  % 不显示字符串中的空格
+}
+
 \title{非原子区块链交易识别网站 - 项目最终报告}
-\author{开发团队}
+\author{}
 \date{\today}
 
 \begin{document}
@@ -34,6 +66,73 @@
     \item \textbf{反向代理 (Reverse Proxy)}：使用 \textbf{Nginx} 作为反向代理，负责请求路由。
     \item \textbf{数据获取 (Data Fetching)}：使用 \textbf{Python} 脚本，用于定期从各平台 API 获取数据。
 \end{itemize}
+
+\section{系统界面展示}
+
+本节展示了系统的主要界面截图，展示了系统的用户交互功能。
+
+\subsection{价格看板界面}
+
+价格看板是系统的主要数据展示界面，提供多个平台的价格对比功能。下图展示了价格看板的主界面：
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{figures/pricedashboard1.png}
+    \caption{价格看板主界面}
+    \label{fig:pricedashboard}
+\end{figure}
+
+如图所示，价格看板提供了Uniswap和Binance的价格对比，并支持交互式操作，包括缩放、拖拽和悬停查看详细信息。
+
+\subsection{价格数据图表展示}
+
+系统提供了多种数据展示方式，用户可以选择不同的数据源进行查看：
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{figures/priceUni.png}
+    \caption{Uniswap价格数据图表}
+    \label{fig:priceuni}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{figures/pricebian.png}
+    \caption{Binance价格数据图表}
+    \label{fig:pricebin}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{figures/priceSum.png}
+    \caption{价格数据汇总视图}
+    \label{fig:pricesum}
+\end{figure}
+
+\subsection{套利分析界面}
+
+套利分析界面是系统的核心功能模块，用于识别和分析套利机会：
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{figures/arbitPreview.png}
+    \caption{套利分析预览界面}
+    \label{fig:arbitpreview}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{figures/arbitVisualize.png}
+    \caption{套利机会可视化}
+    \label{fig:arbitvisualize}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{figures/arbitAna.png}
+    \caption{套利行为分析}
+    \label{fig:arbitana}
+\end{figure}
 
 \section{系统组件详细设计}
 
@@ -99,6 +198,236 @@
     \item \texttt{compute\_arbitrage}：识别非原子套利候选。
     \item \texttt{reset\_recompute.sh}：一键重置并全量重算脚本。
 \end{itemize}
+
+\section{关键代码分析}
+
+本节分析系统中的关键代码实现，包括后端API实现和前端交互逻辑。
+
+\subsection{后端价格数据API实现}
+
+以下是后端获取价格数据的API实现，这是系统的核心功能之一：
+
+\begin{lstlisting}[language=Python, caption=Price Data API Implementation]
+@app.get("/api/price-data")
+def get_price_data(
+    start_date: Optional[date] = Query(
+        None, description="Start date in YYYY-MM-DD format (default returns last 30 days)"
+    ),
+    end_date: Optional[date] = Query(
+        None, description="End date in YYYY-MM-DD format (default is today, UTC)"
+    ),
+    db: Session = Depends(get_db)
+):
+    """
+    Signature: `GET /api/price-data`
+    
+    Description:
+    Get Uniswap V3 and Binance price data aggregated by day into OHLC format,
+    and provide displayTime/id fields directly usable by frontend charts.
+    
+    Parameters:
+    - `start_date` (date, optional): Start date in "YYYY-MM-DD" format, default = 29 days before end_date
+    - `end_date` (date, optional): End date in "YYYY-MM-DD" format, default = today (UTC)
+    - `db` (Session): Database session provided via dependency injection.
+    
+    Returns:
+    - `dict`: JSON object containing uniswap and binance price data in format:
+      {
+        "uniswap": [
+          {
+            "timestamp": "2025-09-01T00:00:00Z",
+            "open": 2500.0,
+            "high": 2515.0,
+            "low": 2490.0,
+            "close": 2505.0,
+            "volume": 100.0
+          }
+        ],
+        "binance": [...]
+      }
+    """
+    today_utc = datetime.now(timezone.utc).date()
+    resolved_end = end_date or today_utc
+    resolved_start = start_date or (resolved_end - timedelta(days=DEFAULT_PRICE_WINDOW_DAYS - 1))
+    if resolved_start > resolved_end:
+        raise HTTPException(status_code=400, detail="start_date must not be after end_date")
+
+    start_dt = _ensure_utc(datetime.combine(resolved_start, time.min))
+    end_dt = _ensure_utc(datetime.combine(resolved_end, time.max))
+
+    uniswap_ohlc = _daily_ohlcv(
+        db,
+        models.UniswapSwap,
+        func.abs(models.UniswapSwap.amount1),
+        start_dt,
+        end_dt,
+    )
+    binance_ohlc = _daily_ohlcv(
+        db,
+        models.BinanceTrade,
+        models.BinanceTrade.quantity,
+        start_dt,
+        end_dt,
+    )
+
+    return {
+        "uniswap": uniswap_ohlc,
+        "binance": binance_ohlc
+    }
+\end{lstlisting}
+
+In this API implementation, the \texttt{get\_price\_data} function is responsible for retrieving price data from both platforms and aggregating the raw transaction data into OHLC (Open, High, Low, Close) format via the \texttt{\_daily\_ohlcv} function. The function first processes the date parameters, then retrieves data for Uniswap and Binance separately, and finally returns the result in JSON format.
+
+\subsection{套利统计API实现}
+
+套利统计API是系统的另一个核心功能，用于计算和返回套利机会的统计数据：
+
+\begin{lstlisting}[language=Python, caption=Arbitrage Statistics API Implementation]
+@app.get("/api/arbitrage/statistics")
+def get_arbitrage_statistics(db: Session = Depends(get_db)):
+    """
+    Signature: `GET /api/arbitrage/statistics`
+
+    Description:
+    Returns pre-calculated non-atomic arbitrage statistics, directly reading the summary from the arbitrage_opportunities table.
+    """
+    total_opportunities = db.query(func.count(models.ArbitrageOpportunity.id)).scalar() or 0
+    total_profit = (
+        db.query(func.coalesce(func.sum(models.ArbitrageOpportunity.profit), 0)).scalar() or 0.0
+    )
+    average_profit_rate = (
+        db.query(func.coalesce(func.avg(models.ArbitrageOpportunity.profit_rate), 0)).scalar() or 0.0
+    )
+    return {
+        "total_opportunities": int(total_opportunities),
+        "total_profit": float(total_profit),
+        "average_profit_rate": float(average_profit_rate * 100),
+    }
+\end{lstlisting}
+
+This API implementation uses SQLAlchemy to query statistical data from the arbitrage opportunity database, including total opportunities, total profit, and average profit rate. The query uses SQL aggregate functions (COUNT, SUM, AVG) to calculate the statistics.
+
+\subsection{前端套利分析组件实现}
+
+前端套利分析组件是系统数据展示的核心部分，以下是一些关键代码段：
+
+\begin{lstlisting}[language=JavaScript, caption=套利分析组件关键代码]
+const fetchStatistics = async () => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/arbitrage/statistics`);
+    if (!response.ok) {
+      throw new Error('Failed to fetch statistics');
+    }
+    const data = await response.json();
+    setStatistics({
+      totalOpportunities: data.total_opportunities || 0,
+      totalProfit: data.total_profit || 0,
+      averageProfitRate: data.average_profit_rate || 0
+    });
+  } catch (err) {
+    console.error('Error fetching statistics:', err);
+    setError('Failed to fetch statistics, please try again later');
+  }
+};
+
+const fetchBehaviors = async () => {
+  try {
+    setLoading(true);
+    const params = new URLSearchParams({
+      page: currentPage.toString(),
+      page_size: pageSize.toString(),
+      sort_by: filters.sortBy,
+      sort_order: filters.sortOrder
+    });
+    
+    if (filters.minProfit) {
+      params.append('min_profit', filters.minProfit);
+    }
+    
+    const response = await fetch(`${API_BASE_URL}/arbitrage/behaviors?${params}`);
+    if (!response.ok) {
+      throw new Error('Failed to fetch arbitrage behavior list');
+    }
+    const data = await response.json();
+    setBehaviors(data.behaviors || []);
+    setTotalPages(data.total_pages || 1);
+    setError(null);
+  } catch (err) {
+    console.error('Error fetching arbitrage behavior list:', err);
+    setError('Failed to fetch arbitrage behavior list, please try again later');
+    setBehaviors([]);
+  } finally {
+    setLoading(false);
+  }
+};
+\end{lstlisting}
+
+在前端组件中，通过fetch函数调用后端API，使用React的useState和useEffect钩子管理组件状态。代码实现了错误处理、参数构建和数据更新功能。
+
+\subsection{数据聚合函数实现}
+
+后端的数据聚合函数是系统数据处理的核心：
+
+\begin{lstlisting}[language=Python, caption=Data Aggregation Function Implementation]
+def _daily_ohlcv(
+    db: Session,
+    model,
+    volume_expr,
+    start_dt: datetime,
+    end_dt: datetime,
+) -> List[Dict[str, float]]:
+    """
+    Aggregates table data containing price/timestamp into daily OHLCV format.
+    Additionally returns id (row number) and displayTime for compatibility with existing frontend structure.
+    """
+    grouped = (
+        db.query(
+            cast(model.timestamp, Date).label("date"),
+            func.min(model.price).label("low"),
+            func.max(model.price).label("high"),
+            func.sum(volume_expr).label("volume"),
+        )
+        .filter(model.timestamp >= start_dt, model.timestamp <= end_dt)
+        .group_by(cast(model.timestamp, Date))
+        .order_by(cast(model.timestamp, Date))
+        .all()
+    )
+
+    results: List[Dict[str, float]] = []
+    for idx, row in enumerate(grouped, start=1):
+        current_date = row.date
+        first_trade = (
+            db.query(model)
+            .filter(cast(model.timestamp, Date) == current_date)
+            .order_by(model.timestamp.asc())
+            .first()
+        )
+        last_trade = (
+            db.query(model)
+            .filter(cast(model.timestamp, Date) == current_date)
+            .order_by(model.timestamp.desc())
+            .first()
+        )
+        if not first_trade or not last_trade:
+            continue
+
+        ts = _ensure_utc(datetime.combine(current_date, time.min))
+        results.append(
+            {
+                "id": idx,
+                "timestamp": ts.isoformat().replace("+00:00", "Z"),
+                "displayTime": ts.strftime("%m-%d"),
+                "open": float(first_trade.price or 0.0),
+                "high": float(row.high or first_trade.price or 0.0),
+                "low": float(row.low or first_trade.price or 0.0),
+                "close": float(last_trade.price or 0.0),
+                "volume": float(row.volume or 0.0),
+            }
+        )
+    return results
+\end{lstlisting}
+
+This function implements the aggregation of raw transaction data in the database into OHLCV format, including Open, High, Low, Close prices, and Volume. The function uses SQL's GROUP BY and aggregate functions to aggregate the data, and retrieves the opening and closing prices through additional queries.
 
 \section{部署方案}
 
